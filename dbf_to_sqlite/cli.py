@@ -8,9 +8,10 @@ from sqlite_utils import Database
 @click.version_option()
 @click.argument("dbf_paths", type=click.Path(exists=True), nargs=-1, required=True)
 @click.argument("sqlite_db", nargs=1)
-@click.option("--table", help="Table name to use (only valid for single files)")
+@click.option("-cp","--codepage", default='cp936', help="Set codepage for dbf files (default: cp936)")
 @click.option("-v", "--verbose", help="Show what's going on", is_flag=True)
-def cli(dbf_paths, sqlite_db, table, verbose):
+@click.option("--table", help="Table name to use (only valid for single files)")
+def cli(dbf_paths, sqlite_db, table, verbose, codepage):
     """
     Convert DBF files (dBase, FoxPro etc) to SQLite
 
@@ -23,9 +24,11 @@ def cli(dbf_paths, sqlite_db, table, verbose):
         table_name = table if table else Path(path).stem
         if verbose:
             click.echo('Loading {} into table "{}"'.format(path, table_name))
-        table = dbf.Table(str(path))
-        table.open()
-        columns = table.field_names
-        db[table_name].insert_all(dict(zip(columns, list(row))) for row in table)
-        table.close()
+        # table = dbf.Table(str(path))
+        dbfTable = dbf.Table(str(path), codepage=codepage)
+        dbfTable.open()
+        columns = dbfTable.field_names
+        db[table_name].insert_all({col: value.strip() if isinstance(value, str) else value for col, value in zip(columns, list(row))} for row in dbfTable)
+        # db[table_name].insert_all(dict(zip(columns, list(row))) for row in dbfTable)
+        dbfTable.close()
     db.vacuum()
